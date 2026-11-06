@@ -375,30 +375,29 @@ dsh plugin --profile desktop add /path/to/dsh-client-ui-skin-saber
 
 这台机器现在就是这么装的（profile 里是一条 `link:`，改本地文件即可生效）。
 
-### 9.2 GitHub 仓库 + `dsh plugin add github:…`（推荐：可版本化、可分享）
+### 9.2 GitHub 仓库（✅ 已发布，推荐）
 
-本目录**已经有 git 仓库和提交记录**（`.gitignore`、`LICENSE` 都在），只差一个远端：
+仓库：**<https://github.com/IanGely/dsh-client-ui-skin-saber>**（public，已打 tag `v0.1.0` + Release）。
+本机已配置好远端，以后改完 `git add -A && git commit && git push` 即可。
 
-```sh
-cd /Users/angl/Documents/dsh/dsh-client-ui-skin-saber
-git remote add origin https://github.com/IanGely/dsh-client-ui-skin-saber.git
-git push -u origin main          # 默认分支若是 master 按提示改
-```
-
-另一台机器（需要 git；私有仓库还需要该机器的 GitHub 凭据）：
+另一台机器（需要 git）：
 
 ```sh
+# 固定版本（推荐）
+dsh plugin --profile desktop add github:IanGely/dsh-client-ui-skin-saber#v0.1.0
+# 跟最新 main
 dsh plugin --profile desktop add github:IanGely/dsh-client-ui-skin-saber
-# 固定版本更稳：先打 tag
-#   git tag v0.1.0 && git push --tags
-#   dsh plugin --profile desktop add github:IanGely/dsh-client-ui-skin-saber#v0.1.0
+# PATH 没有 dsh 就用应用内置 CLI（见 9.1）
 ```
+
+更新插件：改完本地 → `git push` → 另一台重新执行上面的 `add`（pnpm 会拉新 commit），然后重启 DSH。
 
 小提示：
 
-- `package.json` 里的 `"private": true` **不影响** git 安装（它只挡 npm publish）；
-- 仓库约 8.5 MB，主要是两张壁纸 + 预览图，GitHub 完全没问题；
-- 仓库名建议与包名一致，省得自己混。
+- `package.json` 里的 `"private": true` **不影响** git 安装（它只挡 npm publish），已实测
+  `pnpm add github:IanGely/dsh-client-ui-skin-saber#v0.1.0` 可正常安装；
+- git 安装会用 `files` 白名单打包，`test/` 不会进依赖目录，`lib/` + `assets/` + `cordis.patch.yml` 齐全；
+- 仓库约 8.5 MB，主要是两张壁纸 + 预览图。
 
 ### 9.3 发布到 npm（`dsh plugin add <包名>`，最规范）
 
