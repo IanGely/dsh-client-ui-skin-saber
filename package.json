@@ -1,0 +1,43 @@
+{
+  "name": "dsh-client-ui-skin-saber",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Saber 昼夜双壁纸皮肤：DSH 皮肤插件（客户端注入样式表 + /skin-saber 静态资源路由 + 宿主 index 注入）",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "preview.png",
+    "preview-settings.png",
+    "preview-pages.png",
+    "preview-rightbar.png",
+    "preview-editor.png",
+    "preview-editor-plugin.png",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "theme",
+    "skin",
+    "wallpaper"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# 依赖（本插件没有依赖，防止误提交）
+node_modules/
+
+# 打包产物
+*.tgz
+
+# 日志
+*.log

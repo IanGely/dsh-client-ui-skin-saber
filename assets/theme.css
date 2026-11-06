@@ -1,0 +1,512 @@
+/* ============================================================================
+ * dsh-client-ui-skin-saber — 昼夜双壁纸皮肤
+ *
+ * 这个文件由宿主路由 /skin-saber/theme.css 每次请求直接读盘：
+ *   → 改完保存，重开窗口 / 刷新页面就能看到效果，不用重启 DSH。
+ *
+ * 壁纸：assets/light.png（白天，AM-2）/ assets/dark.png（夜晚，AM-1）
+ * 切换：跟着 `body[data-ds-dark-theme]` 走，也就是「外观设置 = 亮色 / 暗色 / 跟随系统」
+ *       三种偏好都自动适配（跟随系统时由系统配色决定加不加这个属性）。
+ *
+ * ── 分层原则（这是本皮肤的核心，改配色前先读这段）────────────────────────
+ *
+ *   L0  body 的壁纸          —— 尽量不遮：全屏薄纱只留一点点
+ *   L1  应用主框架 .frame    —— 底色极淡（--skin-*-frame），人物保持清晰
+ *   L2  阅读底板             —— ★长对话时正文列（约 780px）的一块半透明板，
+ *                               只有它和侧栏、输入框负责“压住背景”
+ *   L3  卡片 / 面板 / 弹窗   —— 近实色，保证稳定阅读
+ *
+ *  所以：想让人物更清楚 → 减 L1/L0；想文字更稳 → 加 L2（--skin-*-board）。
+ *  不要反过来靠全屏遮罩压背景，那会连人物一起蒙掉。
+ *
+ * ── 结构钩子（来自 0.2.0-rc.2 实测）──────────────────────────────────────
+ *   .frame / .centerCol      —— #root 内，铺底用 bg-base
+ *   [data-phase=hero]        —— 新会话首页（此时没有阅读列）
+ *   [data-phase=active]      —— 长对话
+ *   [class*='_scroll'] > [class$='_column']  —— 正文阅读列（max-width 来自
+ *                               --dsh-chat-content-width，默认 clamp(680,列宽*.64,920)）
+ *   [class*='_composerSeat'] —— 输入区（底部渐变）
+ *   [class*='_composerStack'] [class$='_root'] / [class$='_card'] —— 输入卡片
+ *   [role='dialog']          —— 设置等弹窗
+ *  注意：这些是 CSS Module 生成的 `<hash>_<local>` 类名，我们用 [class*=]/[class$=]
+ *  匹配其稳定后缀；DSH 若改内部结构，按 README 第 7 节用 DevTools 重新抓即可。
+ * ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * 1. 可调参数（数值 = 不透明度 0~1，越高越遮挡背景）
+ * ------------------------------------------------------------------------- */
+:root {
+  /* —— 亮色（白天壁纸）—— */
+  --skin-light-veil-top: 0;         /* 全屏薄纱：几乎不要，人物才不泛白 */
+  --skin-light-veil-bottom: 0.04;
+  --skin-light-frame: 0.10;         /* 主框架底色：从 0.42 降下来，人物保持明亮 */
+  --skin-light-board: 0.55;         /* ★ 正文阅读底板 #F5F8FC */
+  --skin-light-board-blur: 6px;    /*   底板背后模糊：越大越糊，6px 保留轮廓 */
+  --skin-light-side: 0.42;          /* ★ 左侧栏：单层薄纱（内层重复底色已置透明） */
+  --skin-light-input: 0.88;         /* 输入框 */
+  --skin-light-card: 0.66;          /* 卡片 / layer-1 */
+  --skin-light-panel: 0.92;         /* 面板 / 对话框（layer-2） */
+  --skin-light-menu: 0.94;          /* 菜单、弹层（layer-3 / overlay） */
+  --skin-light-bubble: 0.72;        /* 助手消息气泡 */
+  --skin-light-code: 0.94;          /* 代码块（接近实色） */
+  --skin-light-mask: 0.38;          /* 模态遮罩 */
+  --skin-light-mask-soft: 0.20;
+
+  /* —— 暗色（夜晚壁纸）—— */
+  --skin-dark-veil-top: 0.02;
+  --skin-dark-veil-bottom: 0.10;
+  --skin-dark-frame: 0.12;
+  --skin-dark-board: 0.55;          /* ★ 正文阅读底板 #0C162A */
+  --skin-dark-board-blur: 6px;     /*   6px，避免糊成一整块 */
+  --skin-dark-side: 0.40;
+  --skin-dark-input: 0.85;
+  --skin-dark-card: 0.66;
+  --skin-dark-panel: 0.92;
+  --skin-dark-menu: 0.94;
+  --skin-dark-bubble: 0.70;
+  --skin-dark-code: 0.93;
+  --skin-dark-mask: 0.56;
+  --skin-dark-mask-soft: 0.28;
+
+  /* —— 非会话整页内容（插件/设置/轨迹…）的薄纱 + 磨砂 —— */
+  --skin-light-rightbar: 0;         /* 右栏整条薄纱：0 = 透视（只压实卡片），0.4~0.62 = 整栏蒙一层 */
+  --skin-dark-rightbar: 0;
+  --skin-light-preview: 0.97;       /* 文件/代码/文档预览的底：接近实色，保证代码稳定可读 */
+  --skin-dark-preview: 0.97;
+  --skin-light-page: 0.62;
+  --skin-dark-page: 0.58;
+  --skin-page-blur: 8px;
+
+  /* —— 侧栏：右缘渐变淡出宽度 + 磨砂 —— */
+  --skin-side-fade: 32px;
+  --skin-side-blur: 4px;
+
+  /* —— 底板左右渐变淡出宽度（消除硬切边）：同时作为底板的横向内边距 —— */
+  --skin-board-fade: 36px;
+
+  /* —— 阅读列宽度：宽窗口下正文不横跨人物；窄窗口会被 width:100% 自然撑满 —— */
+  --skin-read-width: 820px;
+
+  /* —— 主框架的全局磨砂：默认关掉（会连人物一起糊掉）。要整屏玻璃感可设 8~12px —— */
+  --skin-frame-blur: 0px;
+  --skin-saturate: 1.06;
+
+  /* —— 强调色：亮色为深海蓝，暗色为 Saber 金饰 —— */
+  --skin-accent-light: #1b2542;
+  --skin-accent-light-hover: #2c3a5e;
+  --skin-accent-dark: #e3c567;
+  --skin-accent-dark-hover: #f0da96;
+
+  /* —— 壁纸对齐：角色在画面右侧，默认居中；想偏一点改成 "70% center" 之类 —— */
+  --skin-position: center center;
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. 壁纸层
+ *
+ * 画在 `body` 上：`html` 没有背景，所以 body 的背景会提升为整个画布（canvas）的背景
+ * —— 一次性铺满视口，不依赖任何内部 DOM 结构。薄纱压到最低，遮挡交给下面的板子。
+ * ------------------------------------------------------------------------- */
+body:not([data-ds-dark-theme]) {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / var(--skin-light-veil-top)) 0%,
+      rgb(244 248 255 / var(--skin-light-veil-bottom)) 100%
+    ),
+    url('light.png') var(--skin-position) / cover no-repeat fixed,
+    #eef3fb !important;
+}
+
+body[data-ds-dark-theme] {
+  background:
+    linear-gradient(
+      180deg,
+      rgb(6 10 24 / var(--skin-dark-veil-top)) 0%,
+      rgb(4 7 18 / var(--skin-dark-veil-bottom)) 100%
+    ),
+    url('dark.png') var(--skin-position) / cover no-repeat fixed,
+    #0a0f1e !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. 表面 token
+ *
+ * ui-theme 把别名 token 以行内普通声明写在 <body> 上；行内普通声明优先级低于样式表里的
+ * `!important`，所以这里的覆盖一定生效，且不用碰 ui-theme 的注册表。
+ * ------------------------------------------------------------------------- */
+body:not([data-ds-dark-theme]) {
+  --dsw-alias-bg-base: rgb(255 255 255 / var(--skin-light-frame)) !important;
+  --dsw-alias-bg-layer-1: rgb(255 255 255 / var(--skin-light-card)) !important;
+  --dsw-alias-bg-layer-2: rgb(253 254 255 / var(--skin-light-panel)) !important;
+  --dsw-alias-bg-layer-3: rgb(251 253 255 / var(--skin-light-menu)) !important;
+  --dsw-alias-bg-overlay: rgb(252 253 255 / var(--skin-light-menu)) !important;
+  --dsw-specific-sidebar-fill: rgb(255 255 255 / var(--skin-light-side)) !important;
+  --dsw-specific-input-major: rgb(255 255 255 / var(--skin-light-input)) !important;
+  --dsw-specific-selector: rgb(255 255 255 / 0.74) !important;
+  --dsw-specific-tip: rgb(255 255 255 / var(--skin-light-panel)) !important;
+  --dsw-specific-bubble: rgb(233 242 255 / var(--skin-light-bubble)) !important;
+
+  /* 代码：接近实色，长代码块也能稳定阅读 */
+  --dsw-alias-markdown-code-block: rgb(248 250 254 / var(--skin-light-code)) !important;
+  --dsw-alias-markdown-code-block-banner: rgb(241 245 252 / 0.98) !important;
+  --dsw-alias-markdown-inline-code: rgb(238 243 251 / 0.95) !important;
+
+  /* 浅色下偏淡的辅助文字/图标：加深一档（底部统计、输入提示、工具图标都读这些） */
+  --dsw-alias-label-tertiary: rgb(93 99 110) !important;
+  --dsw-alias-label-caption: rgb(124 130 140) !important;
+
+  /* 边框 / 交互底色 / 滚动条 */
+  --dsw-alias-border-l1: rgb(24 36 66 / 0.12) !important;
+  --dsw-alias-border-l2: rgb(24 36 66 / 0.20) !important;
+  --dsw-alias-interactive-bg-hover: rgb(24 36 66 / 0.08) !important;
+  --dsw-alias-interactive-bg-active: rgb(24 36 66 / 0.15) !important;
+  --dsw-alias-scrollbar-bg-l1: rgb(24 36 66 / 0.20) !important;
+  --dsw-alias-scrollbar-hover-l1: rgb(24 36 66 / 0.34) !important;
+
+  /* 主按钮：深海蓝 */
+  --dsw-alias-brand-primary: var(--skin-accent-light) !important;
+  --dsw-alias-button-primary-hover: var(--skin-accent-light-hover) !important;
+
+  --dsw-alias-bg-mask-1: rgb(0 0 0 / var(--skin-light-mask)) !important;
+  --dsw-alias-bg-mask-2: rgb(0 0 0 / var(--skin-light-mask-soft)) !important;
+}
+
+body[data-ds-dark-theme] {
+  --dsw-alias-bg-base: rgb(11 16 30 / var(--skin-dark-frame)) !important;
+  --dsw-alias-bg-layer-1: rgb(15 21 38 / var(--skin-dark-card)) !important;
+  --dsw-alias-bg-layer-2: rgb(18 26 46 / var(--skin-dark-panel)) !important;
+  --dsw-alias-bg-layer-3: rgb(22 30 53 / var(--skin-dark-menu)) !important;
+  --dsw-alias-bg-overlay: rgb(20 28 48 / var(--skin-dark-menu)) !important;
+  --dsw-specific-sidebar-fill: rgb(12 18 33 / var(--skin-dark-side)) !important;
+  --dsw-specific-input-major: rgb(18 26 46 / var(--skin-dark-input)) !important;
+  --dsw-specific-selector: rgb(20 28 50 / 0.76) !important;
+  --dsw-specific-tip: rgb(20 28 50 / var(--skin-dark-panel)) !important;
+  --dsw-specific-bubble: rgb(19 29 56 / var(--skin-dark-bubble)) !important;
+
+  /* 代码：统一成深海蓝灰，去掉原来的中性灰褐 */
+  --dsw-alias-markdown-code-block: rgb(12 18 34 / var(--skin-dark-code)) !important;
+  --dsw-alias-markdown-code-block-banner: rgb(22 31 52 / 0.98) !important;
+  --dsw-alias-markdown-inline-code: rgb(31 41 63 / 0.95) !important;
+
+  /* 金饰发丝线 */
+  --dsw-alias-border-l1: rgb(227 197 103 / 0.16) !important;
+  --dsw-alias-border-l2: rgb(227 197 103 / 0.26) !important;
+
+  --dsw-alias-interactive-bg-hover: rgb(255 255 255 / 0.10) !important;
+  --dsw-alias-interactive-bg-active: rgb(255 255 255 / 0.17) !important;
+  --dsw-alias-scrollbar-bg-l1: rgb(227 197 103 / 0.22) !important;
+  --dsw-alias-scrollbar-hover-l1: rgb(227 197 103 / 0.38) !important;
+
+  /* 主按钮：金饰（按钮文字用深色 label-primary-inverted，对比度没问题） */
+  --dsw-alias-brand-primary: var(--skin-accent-dark) !important;
+  --dsw-alias-button-primary-hover: var(--skin-accent-dark-hover) !important;
+
+  --dsw-alias-bg-mask-1: rgb(0 0 0 / var(--skin-dark-mask)) !important;
+  --dsw-alias-bg-mask-2: rgb(0 0 0 / var(--skin-dark-mask-soft)) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. 阅读底板 + 输入框对齐（长对话）
+ *
+ * 4.1 底板：整列共用一块，落在正文列上，左对齐 —— 右侧留给人物的位置不铺任何东西。
+ *     用「底色渐变」而不是 opacity：只让底色的 alpha 变化，文字不受影响。
+ *     左右各留 rem --skin-board-fade 的淡出（消除硬切边），并且横向 padding 取同一个值，
+ *     保证文字正好从「淡出结束」处开始，不会落在半透明的边上。
+ * 4.2 行宽：--dsh-chat-content-width 由 --dsh-chat-user-width 兜底，
+ *     改它同时收窄正文、气泡和输入卡片（它们是同一个变量派生的）。
+ * 4.3 输入框：卡片宽度与底板取齐，并把居中改成与底板同一条左边界。
+ * 4.4 底部渐隐：输入区原来靠 bg-base 渐隐，现在 bg-base 很淡，这里显式补上。
+ * ------------------------------------------------------------------------- */
+
+/* 4.2 行宽：窄窗口由 width:100% 自然收缩 */
+body {
+  --dsh-chat-user-width: var(--skin-read-width) !important;
+}
+
+/* 首页（hero）不铺底板：壁纸完整展示，只让输入框突出 */
+body:not([data-ds-dark-theme]) [data-phase='active'] [class*='_scroll'] > [class$='_column'],
+body:not([data-ds-dark-theme]) [data-content-phase='active'] [class*='_scroll'] > [class$='_column'] {
+  background: linear-gradient(
+    90deg,
+    rgb(245 248 252 / 0) 0,
+    rgb(245 248 252 / var(--skin-light-board)) var(--skin-board-fade),
+    rgb(245 248 252 / var(--skin-light-board)) calc(100% - var(--skin-board-fade)),
+    rgb(245 248 252 / 0) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(var(--skin-light-board-blur)) saturate(1.04);
+  backdrop-filter: blur(var(--skin-light-board-blur)) saturate(1.04);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  box-sizing: border-box;
+  padding: 20px var(--skin-board-fade) 28px;
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+body[data-ds-dark-theme] [data-phase='active'] [class*='_scroll'] > [class$='_column'],
+body[data-ds-dark-theme] [data-content-phase='active'] [class*='_scroll'] > [class$='_column'] {
+  background: linear-gradient(
+    90deg,
+    rgb(12 22 42 / 0) 0,
+    rgb(12 22 42 / var(--skin-dark-board)) var(--skin-board-fade),
+    rgb(12 22 42 / var(--skin-dark-board)) calc(100% - var(--skin-board-fade)),
+    rgb(12 22 42 / 0) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(var(--skin-dark-board-blur)) saturate(1.04);
+  backdrop-filter: blur(var(--skin-dark-board-blur)) saturate(1.04);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  box-sizing: border-box;
+  padding: 20px var(--skin-board-fade) 28px;
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+/* 4.3 输入卡片与底板等宽、同一条左边界 */
+[data-phase='active'],
+[data-content-phase='active'] {
+  --dsh-composer-card-max-width: var(--dsh-chat-content-width) !important;
+}
+
+[data-phase='active'] [class*='_composerStack'] [class$='_root'],
+[data-content-phase='active'] [class*='_composerStack'] [class$='_root'] {
+  align-items: flex-start;
+  /* 与阅读列的横向内边距（scroll 的 padding-left）保持一致 */
+  padding-left: calc(var(--dsh-composer-side-clearance) + 16px);
+}
+
+/* 4.4 输入区底部的渐隐条（只在正文列宽度内，避免压住右侧人物） */
+body:not([data-ds-dark-theme]) [data-phase='active'] [class*='_composerSeat'],
+body:not([data-ds-dark-theme]) [data-content-phase='active'] [class*='_composerSeat'] {
+  background: linear-gradient(
+    180deg,
+    rgb(245 248 252 / 0) 0px,
+    rgb(245 248 252 / var(--skin-light-board)) 48px
+  ) !important;
+}
+
+body[data-ds-dark-theme] [data-phase='active'] [class*='_composerSeat'],
+body[data-ds-dark-theme] [data-content-phase='active'] [class*='_composerSeat'] {
+  background: linear-gradient(
+    180deg,
+    rgb(16 26 44 / 0) 0px,
+    rgb(16 26 44 / var(--skin-dark-board)) 48px
+  ) !important;
+}
+
+/* 4.5 左侧栏：同一套「薄纱 + 磨砂 + 边缘淡出」
+ *
+ * 实测侧栏被铺了两层同一个 token（`_6Qf49G_sidebarCol` 与侧栏插件自己的
+ * `_3WPZCG_root`），合成后 ≈1-(1-0.88)²≈98% 不透明 —— 这就是它看起来像实心板、
+ * 壁纸完全看不见的原因。这里：
+ *   ① 让内层重复的那层透明 → 只剩一层，旋钮值＝实际看到的 alpha；
+ *   ② 底色用渐变，右缘按 --skin-side-fade 淡出（窄窗收起时退化为 min(…,18%) 不会整条虚掉）；
+ *   ③ 加磨砂，让会话名在更低的 alpha 下依然清楚。
+ */
+[class*='_sidebarCol'] [class*='_root'] {
+  background: transparent !important;
+}
+
+body:not([data-ds-dark-theme]) [class*='_sidebarCol'] {
+  background: linear-gradient(
+    90deg,
+    rgb(252 253 255 / var(--skin-light-side)) 0,
+    rgb(252 253 255 / var(--skin-light-side)) calc(100% - min(var(--skin-side-fade), 18%)),
+    rgb(252 253 255 / 0) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(var(--skin-side-blur)) saturate(1.04);
+  backdrop-filter: blur(var(--skin-side-blur)) saturate(1.04);
+}
+
+body[data-ds-dark-theme] [class*='_sidebarCol'] {
+  background: linear-gradient(
+    90deg,
+    rgb(10 15 28 / var(--skin-dark-side)) 0,
+    rgb(10 15 28 / var(--skin-dark-side)) calc(100% - min(var(--skin-side-fade), 18%)),
+    rgb(10 15 28 / 0) 100%
+  ) !important;
+  -webkit-backdrop-filter: blur(var(--skin-side-blur)) saturate(1.04);
+  backdrop-filter: blur(var(--skin-side-blur)) saturate(1.04);
+}
+
+/* ---------------------------------------------------------------------------
+ * 4.6 非会话的「整页内容」（插件页、设置页、轨迹、插件市场、…）
+ *
+ * 这些页面挂在同一个正文列（`_centerCol`）里，但既不是会话阅读列、也没有
+ * `data-phase`，所以前面那些钩子都覆盖不到 —— 实测它们的容器（如插件页的
+ * `ZVcBiW_page`，整列 1160px、可滚动）背景是透明的，文字直接压在壁纸上。
+ *
+ * 这里用一条通用规则兜住：正文列里「没有会话阅读列」且「不是新会话首页」时，
+ * 就给整列铺一层与底板同族的薄纱 + 磨砂。以后新增的整页也会自动享受到。
+ * ------------------------------------------------------------------------- */
+body:not([data-ds-dark-theme]) [class$='_centerCol']:not(:has([class$='_column'])):not(:has([data-phase='hero'])):not(:has([data-content-phase='hero'])) {
+  background: rgb(248 250 254 / var(--skin-light-page)) !important;
+  -webkit-backdrop-filter: blur(var(--skin-page-blur)) saturate(1.04);
+  backdrop-filter: blur(var(--skin-page-blur)) saturate(1.04);
+}
+
+body[data-ds-dark-theme] [class$='_centerCol']:not(:has([class$='_column'])):not(:has([data-phase='hero'])):not(:has([data-content-phase='hero'])) {
+  background: rgb(12 18 34 / var(--skin-dark-page)) !important;
+  -webkit-backdrop-filter: blur(var(--skin-page-blur)) saturate(1.04);
+  backdrop-filter: blur(var(--skin-page-blur)) saturate(1.04);
+}
+
+/* ---------------------------------------------------------------------------
+ * 4.7 右侧边栏（`_rightbarCol`）——只把里面的小卡片压实，整栏保持透视
+ *
+ * 实测整栏底色只有 `--dsw-alias-bg-base`（本皮肤 0.10），而「工作区文件 / 新建终端 /
+ * 浏览器」那三张启动卡读的是 `--dsw-alias-bg-layer-1`（0.66）—— 两张半透明叠在壁纸上，
+ * 卡里的小字就发虚。
+ *
+ * 所以这里**不改结构、只做作用域内的 token 覆盖**：右栏内 `bg-layer-1` 提到 0.90，
+ * 卡片变实；整条右栏默认仍是透视（`--skin-*-rightbar: 0`）。
+ * 想让整条右栏也蒙一层薄纱，把 `--skin-{light,dark}-rightbar` 调到 0.4~0.62。
+ *
+ * hover 也要一起处理：这些卡片的 hover 是**替换**背景成
+ * `--dsw-alias-interactive-bg-hover`（原主题里只有 8% 的淡色）—— 在没有底的壁纸上等于
+ * "hover 一下卡片就掉底、变成空描边"。所以右栏内把这个 token 换成实心高亮，
+ * hover 反而比静止态更清楚。
+ * ------------------------------------------------------------------------- */
+body:not([data-ds-dark-theme]) [class*='_rightbarCol'] {
+  background: rgb(248 250 254 / var(--skin-light-rightbar)) !important;
+  --dsw-alias-bg-layer-1: rgb(255 255 255 / 0.90) !important;
+  --dsw-alias-interactive-bg-hover: rgb(244 248 255 / 0.97) !important;
+}
+
+body[data-ds-dark-theme] [class*='_rightbarCol'] {
+  background: rgb(12 18 34 / var(--skin-dark-rightbar)) !important;
+  --dsw-alias-bg-layer-1: rgb(15 21 38 / 0.90) !important;
+  --dsw-alias-interactive-bg-hover: rgb(28 38 62 / 0.97) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4.8 文件 / 代码 / 文档预览（右侧边栏里的"编辑器"）
+ *
+ * 实测 `dsh-client-ui-sidebar-documentpreview` 的正文容器（`.gLzERG_body`）**没有底色**：
+ * 只有 PDF 预览会铺 `--dsw-alias-bg-document-preview`，其余（代码/文本/Markdown）都靠
+ * 周围面板兜底。默认主题的面板是不透明的，所以看不出来；本皮肤把面板做成透视后，
+ * 代码就直接压在壁纸上了。
+ *
+ * 这里用预览组件自己暴露的**语义属性**判断「当前标签页是不是预览」，是的话给整块
+ * 内容铺接近实色的底（代码/文件预览必须稳定，和 README 里的分层原则一致）；
+ * 文件树、终端、浏览器等其它标签保持透视，不受影响。
+ *
+ *   预览标记：[data-textpreview-body] [data-textpreview-path] [data-code-preview]
+ *            [data-document-markdown] [data-document-frontmatter] [data-pdf-preview]
+ * 三处落点（覆盖普通模式 / 全屏模式 / 兜底）：右栏面板、右栏标签页内容、预览正文容器。
+ * ------------------------------------------------------------------------- */
+body:not([data-ds-dark-theme]) [data-sidebar-right-panel]:has([data-textpreview-body], [data-textpreview-path], [data-code-preview], [data-document-markdown], [data-document-frontmatter], [data-pdf-preview]),
+body:not([data-ds-dark-theme]) [class*='_rightbarCol'] [class*='_pane']:has([data-textpreview-body], [data-textpreview-path], [data-code-preview], [data-document-markdown], [data-document-frontmatter], [data-pdf-preview]),
+body:not([data-ds-dark-theme]) [data-textpreview-body] {
+  background: rgb(250 251 254 / var(--skin-light-preview)) !important;
+}
+
+body[data-ds-dark-theme] [data-sidebar-right-panel]:has([data-textpreview-body], [data-textpreview-path], [data-code-preview], [data-document-markdown], [data-document-frontmatter], [data-pdf-preview]),
+body[data-ds-dark-theme] [class*='_rightbarCol'] [class*='_pane']:has([data-textpreview-body], [data-textpreview-path], [data-code-preview], [data-document-markdown], [data-document-frontmatter], [data-pdf-preview]),
+body[data-ds-dark-theme] [data-textpreview-body] {
+  background: rgb(12 18 34 / var(--skin-dark-preview)) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4.9 第三方文件编辑器（profile 插件 `dsh-better-sidebar`，内部是 CodeMirror）
+ *
+ * 这个插件自带一套面板与编辑器组件：编辑器容器 `*_editor` **没有底色**，
+ * 它的 pane 只有 `--dsw-alias-bg-base`（本皮肤 0.10），所以代码/日志直接压在壁纸上。
+ * 它的类名带构建哈希（形如 `nArs4W_editor`），随插件重建会变，所以这里按**稳定后缀**
+ * 匹配：`[class$='_editor']`、`[class$='_pane']:has(…)`，不依赖具体哈希值。
+ * 只在"编辑器打开"时铺接近实色的底；文件树、Git、终端等其它面板保持透视。
+ * 底板颜色复用 `--skin-{light,dark}-preview`（和 4.8 的文档预览同一个旋钮）。
+ * ------------------------------------------------------------------------- */
+body:not([data-ds-dark-theme]) [class$='_editor'],
+body:not([data-ds-dark-theme]) [class$='_pane']:has([class$='_editor']),
+body:not([data-ds-dark-theme]) [class$='_paneContent']:has([class$='_editor']) {
+  background: rgb(250 251 254 / var(--skin-light-preview)) !important;
+}
+
+body[data-ds-dark-theme] [class$='_editor'],
+body[data-ds-dark-theme] [class$='_pane']:has([class$='_editor']),
+body[data-ds-dark-theme] [class$='_paneContent']:has([class$='_editor']) {
+  background: rgb(12 18 34 / var(--skin-dark-preview)) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * 5. 磨砂玻璃（默认关闭）
+ *
+ * 全局磨砂会把人物一起糊掉，所以 --skin-frame-blur 默认 0px。想要整屏玻璃感再打开，
+ * 用 :has() 精准命中应用主框架，避免误伤其它带 `_frame` 后缀的组件类名。
+ * ------------------------------------------------------------------------- */
+#root > *:has([class*='_sidebarCol']) {
+  -webkit-backdrop-filter: blur(var(--skin-frame-blur)) saturate(var(--skin-saturate));
+  backdrop-filter: blur(var(--skin-frame-blur)) saturate(var(--skin-saturate));
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. 弹窗 / 对话框：面板 0.92 + 磨砂，避免背后正文透出来叠字
+ * ------------------------------------------------------------------------- */
+[role='dialog'],
+[role='alertdialog'] {
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+/* ---------------------------------------------------------------------------
+ * 7. 顶部一条金蓝发丝线（纯装饰，不吃点击）
+ * ------------------------------------------------------------------------- */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 9998;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(227 197 103 / 0) 0%,
+    rgb(227 197 103 / 0.75) 18%,
+    rgb(27 37 66 / 0.85) 50%,
+    rgb(227 197 103 / 0.75) 82%,
+    rgb(227 197 103 / 0) 100%
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * 8. 无障碍：系统要求「降低透明度」时退回纯色皮肤，不铺壁纸、不磨砂
+ * （Chromium 不支持这个媒体特性会忽略；Safari 会生效）
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --skin-frame-blur: 0px;
+    --skin-light-board-blur: 0px;
+    --skin-dark-board-blur: 0px;
+  }
+
+  body:not([data-ds-dark-theme]) {
+    background: #eef3fb !important;
+    --dsw-alias-bg-base: #eef3fb !important;
+    --dsw-specific-sidebar-fill: #f4f7fc !important;
+  }
+
+  body[data-ds-dark-theme] {
+    background: #0a0f1e !important;
+    --dsw-alias-bg-base: #0a0f1e !important;
+    --dsw-specific-sidebar-fill: #101728 !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 9. 备注
+ *
+ * - 文字还是飘：加 --skin-{light,dark}-board（底板），不要再去加全屏 veil/frame。
+ * - 人物被蒙：减 --skin-*-frame；确认 --skin-frame-blur 是 0px。
+ * - 正文太宽/太窄：改 --skin-read-width（720~820 之间挑）。
+ * - 侧栏想更实：加 --skin-*-side。注意侧栏原本被铺了两层同一个 token（应用一层的
+ *   `_sidebarCol` + 侧栏插件一层的 `_root`），本皮肤已把内层置透明，所以这个值就是最终 alpha；
+ *   若某个版本内层换了类名又冒出来，用 `[class*='_sidebarCol'] [class*='_root']` 同款写法补一刀。
+ * - 某个面板还是不透：把类名加进 `[class*='_...Col'] { background: transparent !important }`。
+ * - 本文件没有任何动效，也保留系统焦点样式与「减少动态效果」行为。
+ * ------------------------------------------------------------------------- */
