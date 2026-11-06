@@ -352,3 +352,112 @@ ctx.theme.overrideTokens('dsh-client-ui-skin-saber', {
 - 桌面端 `<->` 浏览器的差异来自 Electron 主进程的 `dsh-app://` 协议处理器（见 3.1）；
   客户端半是唯一同时覆盖两种环境的注入点。
 - 不引入新依赖、不改任何组件代码、不需要构建工具。
+
+## 9. 打包、发布与换机安装
+
+这个插件**没有构建步骤**（`lib/index.js`、`lib/client.js` 都是手写产物并已提交），
+所以拿到源码 / 包就能直接跑。下面三种方式按「省事 → 正规」排列。
+
+### 9.1 直接拷目录（最快，不上传任何东西）
+
+另一台机器上：
+
+```sh
+# 1) 把整个 dsh-client-ui-skin-saber/ 拷过去（U 盘 / 网盘 / scp 都行）
+#    注意 assets/ 里就是两张壁纸和 theme.css，别漏
+# 2) 装进 profile
+dsh plugin --profile desktop add /path/to/dsh-client-ui-skin-saber
+#    本机 PATH 没有 dsh 的话用应用内置 CLI：
+#    "/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh" \
+#      plugin --profile desktop add /path/to/dsh-client-ui-skin-saber
+# 3) 重启 DSH
+```
+
+这台机器现在就是这么装的（profile 里是一条 `link:`，改本地文件即可生效）。
+
+### 9.2 GitHub 仓库 + `dsh plugin add github:…`（推荐：可版本化、可分享）
+
+本目录**已经初始化好 git 仓库并有一次提交**，只差一个远端：
+
+```sh
+cd /Users/angl/Documents/dsh/dsh-client-ui-skin-saber
+git remote add origin git@github.com:<你的账号>/dsh-client-ui-skin-saber.git
+git push -u origin main          # 默认分支若是 master 按提示改
+```
+
+另一台机器（需要 git；私有仓库还需要该机器的 GitHub 凭据）：
+
+```sh
+dsh plugin --profile desktop add github:<你的账号>/dsh-client-ui-skin-saber
+# 固定版本更稳：先打 tag
+#   git tag v0.1.0 && git push --tags
+#   dsh plugin --profile desktop add github:<账号>/dsh-client-ui-skin-saber#v0.1.0
+```
+
+小提示：
+
+- `package.json` 里的 `"private": true` **不影响** git 安装（它只挡 npm publish）；
+- 仓库约 8.5 MB，主要是两张壁纸 + 预览图，GitHub 完全没问题；
+- 仓库名建议与包名一致，省得自己混。
+
+### 9.3 发布到 npm（`dsh plugin add <包名>`，最规范）
+
+`dsh-client-ui-skin-saber` 这个名字在 npm 上**还没被占用**（查过是 404）。
+
+```sh
+cd dsh-client-ui-skin-saber
+# 1) 把 package.json 里的 "private": true 删掉（npm 拒收 private 包）
+# 2) 登录并发布
+npm login
+npm publish --access public        # 或 pnpm publish --access public
+```
+
+另一台机器：
+
+```sh
+dsh plugin --profile desktop add dsh-client-ui-skin-saber          # 最新
+dsh plugin --profile desktop add dsh-client-ui-skin-saber@0.1.0    # 固定版本
+```
+
+发 npm 前建议顺手补两行（可选，`npm publish` 会提示缺 repository）：
+
+```json
+"repository": { "type": "git", "url": "git+https://github.com/<账号>/dsh-client-ui-skin-saber.git" },
+"homepage": "https://github.com/<账号>/dsh-client-ui-skin-saber#readme"
+```
+
+⚠️ **改包名要三处一起改**：`package.json` 的 `name`、`lib/client.js` 里
+`window.__ModuleLoader__.load({ id: … })` 的 `id`、`cordis.patch.yml` 里的 `name:`。
+三处不一致会报 "… 不是 client 包" 或客户端 bundle 不加载 —— 所以第一次发布建议**直接沿用现在的名字**。
+
+### 9.4 换机后怎么验证
+
+```sh
+# 1) 插件是否在 profile 里
+grep -n "dsh-client-ui-skin-saber" ~/.dsh/profiles/desktop/package.json \
+                                   ~/.dsh/profiles/desktop/cordis.patch.yml
+
+# 2) 宿主路由是否活着（端口换成 dsh web 打印的地址）
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" \
+  http://127.0.0.1:<port>/skin-saber/theme.css     # 期望 200 text/css
+```
+
+然后重启 DSH；之后只改 `assets/theme.css` 就只需刷新页面。
+
+### 9.5 卸载
+
+```sh
+dsh plugin --profile desktop remove dsh-client-ui-skin-saber    # 然后重启
+```
+
+### 9.6 版本兼容提醒
+
+皮肤的 DOM 钩子按 **0.2.1-rc.3** 实测（本机现在是 0.2.2-rc.1，仍可用）。另一台机器如果 DSH
+版本差得多，个别表面的钩子可能不匹配（表现为某处又变透明/变实），按第 7 节用 Console 重抓类名
+补进 `theme.css` 即可 —— 主题只做样式覆盖，不会让 DSH 起不来。
+
+### 9.7 包体积
+
+`pnpm pack` 出来的 tarball 约 **8.3 MB**：两张壁纸 4.5 MB + 预览图 3.5 MB + 代码 100 KB。
+想让包小一点：把 `package.json` 的 `files` 里 `preview*.png` 去掉（npm 包变 ~4.7 MB），
+或者把壁纸转成 WebP（通常能压到 300–500 KB/张，但要同步改 `theme.css` 里的文件名）。
