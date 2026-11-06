@@ -39,5 +39,10 @@
     "skin",
     "wallpaper"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IanGely/dsh-client-ui-skin-saber.git"
+  },
+  "homepage": "https://github.com/IanGely/dsh-client-ui-skin-saber#readme"
 }

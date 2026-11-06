@@ -381,17 +381,17 @@ dsh plugin --profile desktop add /path/to/dsh-client-ui-skin-saber
 
 ```sh
 cd /Users/angl/Documents/dsh/dsh-client-ui-skin-saber
-git remote add origin git@github.com:<你的账号>/dsh-client-ui-skin-saber.git
+git remote add origin https://github.com/IanGely/dsh-client-ui-skin-saber.git
 git push -u origin main          # 默认分支若是 master 按提示改
 ```
 
 另一台机器（需要 git；私有仓库还需要该机器的 GitHub 凭据）：
 
 ```sh
-dsh plugin --profile desktop add github:<你的账号>/dsh-client-ui-skin-saber
+dsh plugin --profile desktop add github:IanGely/dsh-client-ui-skin-saber
 # 固定版本更稳：先打 tag
 #   git tag v0.1.0 && git push --tags
-#   dsh plugin --profile desktop add github:<账号>/dsh-client-ui-skin-saber#v0.1.0
+#   dsh plugin --profile desktop add github:IanGely/dsh-client-ui-skin-saber#v0.1.0
 ```
 
 小提示：
@@ -422,8 +422,8 @@ dsh plugin --profile desktop add dsh-client-ui-skin-saber@0.1.0    # 固定版�
 发 npm 前建议顺手补两行（可选，`npm publish` 会提示缺 repository）：
 
 ```json
-"repository": { "type": "git", "url": "git+https://github.com/<账号>/dsh-client-ui-skin-saber.git" },
-"homepage": "https://github.com/<账号>/dsh-client-ui-skin-saber#readme"
+"repository": { "type": "git", "url": "git+https://github.com/IanGely/dsh-client-ui-skin-saber.git" },
+"homepage": "https://github.com/IanGely/dsh-client-ui-skin-saber#readme"
 ```
 
 ⚠️ **改包名要三处一起改**：`package.json` 的 `name`、`lib/client.js` 里
