@@ -377,7 +377,7 @@ dsh plugin --profile desktop add /path/to/dsh-client-ui-skin-saber
 
 ### 9.2 GitHub 仓库 + `dsh plugin add github:…`（推荐：可版本化、可分享）
 
-本目录**已经初始化好 git 仓库并有一次提交**，只差一个远端：
+本目录**已经有 git 仓库和提交记录**（`.gitignore`、`LICENSE` 都在），只差一个远端：
 
 ```sh
 cd /Users/angl/Documents/dsh/dsh-client-ui-skin-saber
