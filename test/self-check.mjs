@@ -100,17 +100,33 @@ let importSeq = 0
 /**
  * 用最小 DOM 替身执行 lib/client.js 的 lazy-CJS 注册与 factory，返回结果。
  * DOM 替身只在 factory 执行期间存在，因此 factory 必须在 try 内调用。
- * @param options - 模拟「已存在」的两种去重来源。
+ * @param options - 模拟「已存在」的去重来源，以及预置的 localStorage 内容。
  */
-async function runClientBundle({ existingById = false, existingTap = false } = {}) {
+async function runClientBundle({ existingById = false, existingTap = false, stored = null } = {}) {
   const appended = []
+  /** <html> 行内样式：记录 setProperty / removeProperty，用于断言 CSS 变量写入。 */
+  const style = {
+    values: new Map(),
+    setProperty(name, value) { this.values.set(name, value) },
+    removeProperty(name) { this.values.delete(name) },
+  }
+  const store = new Map()
+  if (stored !== null) store.set('dsh.skin.saber.settings', stored)
   let registration
-  globalThis.window = { __ModuleLoader__: { load: reg => { registration = reg } } }
+  globalThis.window = {
+    __ModuleLoader__: { load: reg => { registration = reg } },
+    localStorage: {
+      getItem: key => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => { store.set(key, value) },
+    },
+  }
   globalThis.document = {
     readyState: 'complete',
+    documentElement: { style },
+    body: { appendChild: () => {} },
     getElementById: () => (existingById ? { id: '__dsh-skin-saber-stylesheet__' } : null),
     querySelector: () => (existingTap ? { tagName: 'LINK' } : null),
-    createElement: tag => ({ tagName: tag.toUpperCase(), id: '', rel: '', href: '' }),
+    createElement: tag => ({ tagName: tag.toUpperCase(), id: '', rel: '', href: '', setAttribute() {}, addEventListener() {} }),
     head: { appendChild: element => appended.push(element) },
     addEventListener: () => {},
   }
@@ -122,7 +138,7 @@ async function runClientBundle({ existingById = false, existingTap = false } = {
     delete globalThis.window
     delete globalThis.document
   }
-  return { registration, surface, appended }
+  return { registration, surface, appended, style, store }
 }
 
 await check('client bundle 以 lazy-CJS 约定注册，id 与包名一致', async () => {
@@ -146,6 +162,29 @@ await check('client bundle 与宿主 tap 互相去重', async () => {
 
   const already = await runClientBundle({ existingById: true })
   assert.equal(already.appended.length, 0, '自己挂过就不该重复注入')
+})
+
+/* --- 不透明度设置（默认值 / 持久化读取）--------------------------------- */
+
+await check('默认写入 --skin-solid: 1（完全不透明）', async () => {
+  const { style } = await runClientBundle()
+  assert.equal(style.values.get('--skin-solid'), '1')
+  assert.equal(style.values.has('--skin-light-board'), false, '未单独覆盖底板时应交给 CSS 插值')
+})
+
+await check('读取已保存的设置并应用到 CSS 变量', async () => {
+  const { style } = await runClientBundle({
+    stored: JSON.stringify({ solid: 0.3, board: 0.8 }),
+  })
+  assert.equal(style.values.get('--skin-solid'), '0.3')
+  assert.equal(style.values.get('--skin-light-board'), '0.8')
+  assert.equal(style.values.get('--skin-dark-board'), '0.8')
+})
+
+await check('设置非法时回退默认值，不让皮肤崩掉', async () => {
+  const { style } = await runClientBundle({ stored: '{"solid": 42, "board": "x"}' })
+  assert.equal(style.values.get('--skin-solid'), '1')
+  assert.equal(style.values.has('--skin-light-board'), false)
 })
 
 /* --- index 注入（走 tap，即真实路径） ------------------------------------ */

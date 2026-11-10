@@ -1,6 +1,6 @@
 {
   "name": "dsh-client-ui-skin-saber",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Saber 昼夜双壁纸皮肤：DSH 皮肤插件（客户端注入样式表 + /skin-saber 静态资源路由 + 宿主 index 注入）",
@@ -21,7 +21,8 @@
     "preview-rightbar.png",
     "preview-editor.png",
     "preview-editor-plugin.png",
-    "LICENSE"
+    "LICENSE",
+    "preview-panel.png"
   ],
   "dsh": {
     "bundle": {

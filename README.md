@@ -223,6 +223,7 @@ console.log(transform({ filename: 'theme.css', code: readFileSync('/Users/angl/D
 
 | 旋钮 | 作用 | 感觉不对时怎么调 |
 | --- | --- | --- |
+| `--skin-solid` | ★**总不透明度**：`0` = 半透明（壁纸透出）/ `1` = 完全不透明（实色，壁纸被盖住）。每个表面的有效 alpha = `base + (1-base) × solid` | 平时不用手改 —— 按 **⌥⌘K** 用面板调；想一次性改默认值就改这里 |
 | `--skin-{light,dark}-board` | ★**正文阅读底板**底色 alpha（亮/暗都 0.55） | 文字还是飘 → 加大到 0.60~0.65；还觉得实 → 继续减 |
 | `--skin-{light,dark}-board-blur` | 底板背后磨砂（默认 **6px**，保留壁纸轮廓） | 想更糊 → 10~16px；想更清晰 → 3px / 0px |
 | `--skin-board-fade` | 底板左右渐变淡出宽度（36px，建议 32~48） | 边界太硬 → 加大；文字贴边 → 与底板横向 padding 同值即可（本皮肤就是同一个变量） |
@@ -460,3 +461,63 @@ dsh plugin --profile desktop remove dsh-client-ui-skin-saber    # 然后重启
 `pnpm pack` 出来的 tarball 约 **8.3 MB**：两张壁纸 4.5 MB + 预览图 3.5 MB + 代码 100 KB。
 想让包小一点：把 `package.json` 的 `files` 里 `preview*.png` 去掉（npm 包变 ~4.7 MB），
 或者把壁纸转成 WebP（通常能压到 300–500 KB/张，但要同步改 `theme.css` 里的文件名）。
+
+## 10. 不透明度配置（面板）
+
+皮肤所有表面都挂在同一个总控变量上：
+
+```
+有效 alpha = 基础值 + (1 - 基础值) × --skin-solid
+```
+
+- `--skin-solid: 1`（默认）= **完全不透明**，实色、看不见壁纸，等同原生 DSH 观感但保留 Saber 配色；
+- `--skin-solid: 0` = 之前的效果，壁纸完整透出；
+- 中间值线性过渡（0.5 = 折中）。
+
+### 10.1 用面板调（推荐）
+
+按 **⌥⌘K**（Alt+Cmd+K）打开面板：
+
+![opacity panel](preview-panel.png)
+
+- **三个预设**：`壁纸`（solid=0）/ `均衡`（0.5）/ `不透明`（1）；
+- **总不透明度**：0–100% 连续滑块，所有表面一起变；
+- **正文底板**：单独控制正文阅读列的那块底（覆盖总控对它的影响）；
+- **重置**：回到默认（不透明 + 底板跟随总控）；
+- 选择存在 `localStorage['dsh.skin.saber.settings']`，**每台机器各自生效、重启后保留**。
+
+滑块拖动即时生效，不需要刷新页面。
+
+### 10.2 手改（不想用面板）
+
+`assets/theme.css` 顶部：
+
+```css
+--skin-solid: 1;   /* 改这里就是默认值；0 = 全半透明，1 = 全不透明 */
+```
+
+或者只想让**正文**不透明、其他地方保留壁纸：把 `--skin-light-board-base` / `--skin-dark-board-base`
+直接设成 `1`，`--skin-solid` 保持 `0`。
+
+### 10.3 单独微调某个表面
+
+每个表面的基础值都在 `:root` 里成对出现：
+
+```css
+--skin-dark-board-base: 0.55;                      /* 基础（solid=0 时的值） */
+--skin-dark-board: calc(base + (1-base) * solid);  /* 实际生效值，自动算 */
+```
+
+改 `-base` 就是改这个表面"最透时"的样子，改 `--skin-solid` 是整体加减遮挡。
+
+⚠️ 注意 `--dsw-specific-menu` / `--dsw-menu-surface-fill` 这组菜单 token 也要覆盖（第 3 节已做），
+否则 DSH 自带的 darwin 规则会把菜单一直留在半透明。
+
+### 10.4 面板没反应？
+
+- 面板代码在 `lib/client.js` 里，**改它必须重启 DSH**（客户端 bundle 只在启动时扫描）；
+  只改 `assets/theme.css` 则刷新页面即可（样式表每次请求读盘）；
+- 快捷键被占用时，也可以用 Console 直接改：
+  ```js
+  document.documentElement.style.setProperty('--skin-solid', '1')
+  ```

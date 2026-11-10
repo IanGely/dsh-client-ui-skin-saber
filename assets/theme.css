@@ -36,45 +36,75 @@
  * 1. 可调参数（数值 = 不透明度 0~1，越高越遮挡背景）
  * ------------------------------------------------------------------------- */
 :root {
+  /* ★ 总不透明度：0 = 半透明（壁纸完全透出），1 = 完全不透明（实色，看不见壁纸）。
+   *   每个表面的有效 alpha = 基础值向 1 插值：
+   *     eff = base + (1 - base) * --skin-solid
+   *   面板（⌥⌘K）调的就是这个值，实时生效。 */
+  --skin-solid: 1;
+
   /* —— 亮色（白天壁纸）—— */
   --skin-light-veil-top: 0;         /* 全屏薄纱：几乎不要，人物才不泛白 */
   --skin-light-veil-bottom: 0.04;
-  --skin-light-frame: 0.10;         /* 主框架底色：从 0.42 降下来，人物保持明亮 */
-  --skin-light-board: 0.55;         /* ★ 正文阅读底板 #F5F8FC */
+  --skin-light-frame-base: 0.10;         /* 主框架底色：从 0.42 降下来，人物保持明亮 */
+  --skin-light-frame: calc(var(--skin-light-frame-base) + (1 - var(--skin-light-frame-base)) * var(--skin-solid));
+  --skin-light-board-base: 0.55;         /* ★ 正文阅读底板 #F5F8FC */
+  --skin-light-board: calc(var(--skin-light-board-base) + (1 - var(--skin-light-board-base)) * var(--skin-solid));
   --skin-light-board-blur: 6px;    /*   底板背后模糊：越大越糊，6px 保留轮廓 */
-  --skin-light-side: 0.42;          /* ★ 左侧栏：单层薄纱（内层重复底色已置透明） */
-  --skin-light-input: 0.88;         /* 输入框 */
-  --skin-light-card: 0.66;          /* 卡片 / layer-1 */
-  --skin-light-panel: 0.92;         /* 面板 / 对话框（layer-2） */
-  --skin-light-menu: 0.94;          /* 菜单、弹层（layer-3 / overlay） */
-  --skin-light-bubble: 0.72;        /* 助手消息气泡 */
-  --skin-light-code: 0.94;          /* 代码块（接近实色） */
+  --skin-light-side-base: 0.42;          /* ★ 左侧栏：单层薄纱（内层重复底色已置透明） */
+  --skin-light-side: calc(var(--skin-light-side-base) + (1 - var(--skin-light-side-base)) * var(--skin-solid));
+  --skin-light-input-base: 0.88;         /* 输入框 */
+  --skin-light-input: calc(var(--skin-light-input-base) + (1 - var(--skin-light-input-base)) * var(--skin-solid));
+  --skin-light-card-base: 0.66;          /* 卡片 / layer-1 */
+  --skin-light-card: calc(var(--skin-light-card-base) + (1 - var(--skin-light-card-base)) * var(--skin-solid));
+  --skin-light-panel-base: 0.92;         /* 面板 / 对话框（layer-2） */
+  --skin-light-panel: calc(var(--skin-light-panel-base) + (1 - var(--skin-light-panel-base)) * var(--skin-solid));
+  --skin-light-menu-base: 0.94;          /* 菜单、弹层（layer-3 / overlay） */
+  --skin-light-menu: calc(var(--skin-light-menu-base) + (1 - var(--skin-light-menu-base)) * var(--skin-solid));
+  --skin-light-bubble-base: 0.72;        /* 助手消息气泡 */
+  --skin-light-bubble: calc(var(--skin-light-bubble-base) + (1 - var(--skin-light-bubble-base)) * var(--skin-solid));
+  --skin-light-code-base: 0.94;          /* 代码块（接近实色） */
+  --skin-light-code: calc(var(--skin-light-code-base) + (1 - var(--skin-light-code-base)) * var(--skin-solid));
   --skin-light-mask: 0.38;          /* 模态遮罩 */
   --skin-light-mask-soft: 0.20;
 
   /* —— 暗色（夜晚壁纸）—— */
   --skin-dark-veil-top: 0.02;
   --skin-dark-veil-bottom: 0.10;
-  --skin-dark-frame: 0.12;
-  --skin-dark-board: 0.55;          /* ★ 正文阅读底板 #0C162A */
+  --skin-dark-frame-base: 0.12;
+  --skin-dark-frame: calc(var(--skin-dark-frame-base) + (1 - var(--skin-dark-frame-base)) * var(--skin-solid));
+  --skin-dark-board-base: 0.55;          /* ★ 正文阅读底板 #0C162A */
+  --skin-dark-board: calc(var(--skin-dark-board-base) + (1 - var(--skin-dark-board-base)) * var(--skin-solid));
   --skin-dark-board-blur: 6px;     /*   6px，避免糊成一整块 */
-  --skin-dark-side: 0.40;
-  --skin-dark-input: 0.85;
-  --skin-dark-card: 0.66;
-  --skin-dark-panel: 0.92;
-  --skin-dark-menu: 0.94;
-  --skin-dark-bubble: 0.70;
-  --skin-dark-code: 0.93;
+  --skin-dark-side-base: 0.40;
+  --skin-dark-side: calc(var(--skin-dark-side-base) + (1 - var(--skin-dark-side-base)) * var(--skin-solid));
+  --skin-dark-input-base: 0.85;
+  --skin-dark-input: calc(var(--skin-dark-input-base) + (1 - var(--skin-dark-input-base)) * var(--skin-solid));
+  --skin-dark-card-base: 0.66;
+  --skin-dark-card: calc(var(--skin-dark-card-base) + (1 - var(--skin-dark-card-base)) * var(--skin-solid));
+  --skin-dark-panel-base: 0.92;
+  --skin-dark-panel: calc(var(--skin-dark-panel-base) + (1 - var(--skin-dark-panel-base)) * var(--skin-solid));
+  --skin-dark-menu-base: 0.94;
+  --skin-dark-menu: calc(var(--skin-dark-menu-base) + (1 - var(--skin-dark-menu-base)) * var(--skin-solid));
+  --skin-dark-bubble-base: 0.70;
+  --skin-dark-bubble: calc(var(--skin-dark-bubble-base) + (1 - var(--skin-dark-bubble-base)) * var(--skin-solid));
+  --skin-dark-code-base: 0.93;
+  --skin-dark-code: calc(var(--skin-dark-code-base) + (1 - var(--skin-dark-code-base)) * var(--skin-solid));
   --skin-dark-mask: 0.56;
   --skin-dark-mask-soft: 0.28;
 
   /* —— 非会话整页内容（插件/设置/轨迹…）的薄纱 + 磨砂 —— */
-  --skin-light-rightbar: 0;         /* 右栏整条薄纱：0 = 透视（只压实卡片），0.4~0.62 = 整栏蒙一层 */
-  --skin-dark-rightbar: 0;
-  --skin-light-preview: 0.97;       /* 文件/代码/文档预览的底：接近实色，保证代码稳定可读 */
-  --skin-dark-preview: 0.97;
-  --skin-light-page: 0.62;
-  --skin-dark-page: 0.58;
+  --skin-light-rightbar-base: 0;         /* 右栏整条薄纱：0 = 透视（只压实卡片），0.4~0.62 = 整栏蒙一层 */
+  --skin-light-rightbar: calc(var(--skin-light-rightbar-base) + (1 - var(--skin-light-rightbar-base)) * var(--skin-solid));
+  --skin-dark-rightbar-base: 0;
+  --skin-dark-rightbar: calc(var(--skin-dark-rightbar-base) + (1 - var(--skin-dark-rightbar-base)) * var(--skin-solid));
+  --skin-light-preview-base: 0.97;       /* 文件/代码/文档预览的底：接近实色，保证代码稳定可读 */
+  --skin-light-preview: calc(var(--skin-light-preview-base) + (1 - var(--skin-light-preview-base)) * var(--skin-solid));
+  --skin-dark-preview-base: 0.97;
+  --skin-dark-preview: calc(var(--skin-dark-preview-base) + (1 - var(--skin-dark-preview-base)) * var(--skin-solid));
+  --skin-light-page-base: 0.62;
+  --skin-light-page: calc(var(--skin-light-page-base) + (1 - var(--skin-light-page-base)) * var(--skin-solid));
+  --skin-dark-page-base: 0.58;
+  --skin-dark-page: calc(var(--skin-dark-page-base) + (1 - var(--skin-dark-page-base)) * var(--skin-solid));
   --skin-page-blur: 8px;
 
   /* —— 侧栏：右缘渐变淡出宽度 + 磨砂 —— */
@@ -146,6 +176,10 @@ body:not([data-ds-dark-theme]) {
   --dsw-specific-selector: rgb(255 255 255 / 0.74) !important;
   --dsw-specific-tip: rgb(255 255 255 / var(--skin-light-panel)) !important;
   --dsw-specific-bubble: rgb(233 242 255 / var(--skin-light-bubble)) !important;
+  /* 菜单/弹层读的是这组独立 token（不是 layer-3），必须单独覆盖，
+     否则 DSH 自带的 `html[data-platform=darwin] body{...}` 会一直把菜单留在半透明。 */
+  --dsw-specific-menu: rgb(252 253 254 / var(--skin-light-menu)) !important;
+  --dsw-menu-surface-fill: rgb(252 253 254 / var(--skin-light-menu)) !important;
 
   /* 代码：接近实色，长代码块也能稳定阅读 */
   --dsw-alias-markdown-code-block: rgb(248 250 254 / var(--skin-light-code)) !important;
@@ -183,6 +217,8 @@ body[data-ds-dark-theme] {
   --dsw-specific-selector: rgb(20 28 50 / 0.76) !important;
   --dsw-specific-tip: rgb(20 28 50 / var(--skin-dark-panel)) !important;
   --dsw-specific-bubble: rgb(19 29 56 / var(--skin-dark-bubble)) !important;
+  --dsw-specific-menu: rgb(22 30 53 / var(--skin-dark-menu)) !important;
+  --dsw-menu-surface-fill: rgb(22 30 53 / var(--skin-dark-menu)) !important;
 
   /* 代码：统一成深海蓝灰，去掉原来的中性灰褐 */
   --dsw-alias-markdown-code-block: rgb(12 18 34 / var(--skin-dark-code)) !important;
