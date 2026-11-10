@@ -146,22 +146,28 @@ await check('client bundle 以 lazy-CJS 约定注册，id 与包名一致', asyn
   assert.equal(registration.id, 'dsh-client-ui-skin-saber')
   assert.equal(typeof registration.factory, 'function')
   assert.equal(typeof surface.apply, 'function')
+  assert.deepEqual(surface.inject, ['slots'])
+  // 没有 ctx（或没有 slots）时 apply 也不能抛
+  assert.doesNotThrow(() => surface.apply(undefined))
+  assert.doesNotThrow(() => surface.apply({}))
 })
 
 await check('client bundle 自己挂上 /skin-saber/theme.css（带 ?v= 击穿缓存）', async () => {
   const { appended } = await runClientBundle()
-  assert.equal(appended.length, 1, '必须且只挂一张样式表')
-  assert.equal(appended[0].id, '__dsh-skin-saber-stylesheet__')
-  assert.equal(appended[0].rel, 'stylesheet')
-  assert.match(appended[0].href, /^\/skin-saber\/theme\.css\?v=\d+$/)
+  const sheets = appended.filter(e => e.rel === 'stylesheet')
+  assert.equal(sheets.length, 1, '必须且只挂一张样式表')
+  assert.equal(sheets[0].id, '__dsh-skin-saber-stylesheet__')
+  assert.match(sheets[0].href, /^\/skin-saber\/theme\.css\?v=\d+$/)
+  // 另有一张自带的 UI 样式（类名 sk-*），不算主题样式表
+  assert.equal(appended.filter(e => e.tagName === 'STYLE').length, 1)
 })
 
 await check('client bundle 与宿主 tap 互相去重', async () => {
   const tapped = await runClientBundle({ existingTap: true })
-  assert.equal(tapped.appended.length, 0, '宿主已注入过 <link data-skin> 就不该重复注入')
+  assert.equal(tapped.appended.filter(e => e.rel === 'stylesheet').length, 0, '宿主已注入过 <link data-skin> 就不该重复注入')
 
   const already = await runClientBundle({ existingById: true })
-  assert.equal(already.appended.length, 0, '自己挂过就不该重复注入')
+  assert.equal(already.appended.filter(e => e.rel === 'stylesheet').length, 0, '自己挂过就不该重复注入')
 })
 
 /* --- 不透明度设置（默认值 / 持久化读取）--------------------------------- */

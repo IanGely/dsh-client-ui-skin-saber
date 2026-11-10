@@ -70,7 +70,7 @@ dsh-client-ui-skin-saber/
 ├── package.json        # dsh.bundle.patch + dsh.client —— 一层 profile patch + 一个浏览器 bundle
 ├── cordis.patch.yml    # insert 一行插件：id=ui-skin-saber
 ├── lib/index.js        # 宿主半：/skin-saber 静态资源路由 + 给 HTTP index 注入样式表
-├── lib/client.js       # 客户端半：在窗口内挂样式表（桌面端唯一可行的注入点）
+├── lib/client.js       # 客户端半：挂样式表 + 设置页「皮肤」分区 + ⌥⌘K 浮层
 ├── assets/
 │   ├── light.png       # 白天壁纸（你的 AM-2.png）
 │   ├── dark.png        # 夜晚壁纸（你的 AM-1.png）
@@ -462,7 +462,7 @@ dsh plugin --profile desktop remove dsh-client-ui-skin-saber    # 然后重启
 想让包小一点：把 `package.json` 的 `files` 里 `preview*.png` 去掉（npm 包变 ~4.7 MB），
 或者把壁纸转成 WebP（通常能压到 300–500 KB/张，但要同步改 `theme.css` 里的文件名）。
 
-## 10. 不透明度配置（面板）
+## 10. 不透明度配置
 
 皮肤所有表面都挂在同一个总控变量上：
 
@@ -471,35 +471,46 @@ dsh plugin --profile desktop remove dsh-client-ui-skin-saber    # 然后重启
 ```
 
 - `--skin-solid: 1`（默认）= **完全不透明**，实色、看不见壁纸，等同原生 DSH 观感但保留 Saber 配色；
-- `--skin-solid: 0` = 之前的效果，壁纸完整透出；
-- 中间值线性过渡（0.5 = 折中）。
+- `--skin-solid: 0` = 壁纸完整透出；
+- 中间值线性过渡。
 
-### 10.1 用面板调（推荐）
+### 10.1 入口一：`设置 › 皮肤`（推荐）
 
-按 **⌥⌘K**（Alt+Cmd+K）打开面板：
+设置页左侧导航新增一个**「皮肤」**分区：
+
+![settings section](preview-settings-panel.png)
+
+- 三个预设：`壁纸` / `均衡` / `不透明`
+- **总不透明度**：0–100% 滑块，所有表面一起变
+- **正文底板**：单独控制正文阅读列那块底（想只让正文实、其余保留壁纸时用）
+- **恢复默认**：不透明 100%
+
+选择存 `localStorage['dsh.skin.saber.settings']`，**每台机器各自生效、重启后保留**，拖动即时生效。
+
+### 10.2 入口二：⌥⌘K 快捷浮层
+
+临时试效果用：按 **⌥⌘K** 弹出一个小面板（预设 + 两个滑块 + 重置 + "更多选项在 设置 › 皮肤"）。
 
 ![opacity panel](preview-panel.png)
 
-- **三个预设**：`壁纸`（solid=0）/ `均衡`（0.5）/ `不透明`（1）；
-- **总不透明度**：0–100% 连续滑块，所有表面一起变；
-- **正文底板**：单独控制正文阅读列的那块底（覆盖总控对它的影响）；
-- **重置**：回到默认（不透明 + 底板跟随总控）；
-- 选择存在 `localStorage['dsh.skin.saber.settings']`，**每台机器各自生效、重启后保留**。
-
-滑块拖动即时生效，不需要刷新页面。
-
-### 10.2 手改（不想用面板）
+### 10.3 手改（不想用界面）
 
 `assets/theme.css` 顶部：
 
 ```css
---skin-solid: 1;   /* 改这里就是默认值；0 = 全半透明，1 = 全不透明 */
+--skin-solid: 1;   /* 默认值：0 = 全半透明，1 = 全不透明 */
 ```
 
-或者只想让**正文**不透明、其他地方保留壁纸：把 `--skin-light-board-base` / `--skin-dark-board-base`
-直接设成 `1`，`--skin-solid` 保持 `0`。
+只想让**正文**不透明、其他地方保留壁纸：把 `--skin-light-board-base` / `--skin-dark-board-base`
+设成 `1`，`--skin-solid` 保持 `0`。
 
-### 10.3 单独微调某个表面
+或者 Console：
+
+```js
+document.documentElement.style.setProperty('--skin-solid', '1')
+```
+
+### 10.4 单独微调某个表面
 
 每个表面的基础值都在 `:root` 里成对出现：
 
@@ -508,16 +519,15 @@ dsh plugin --profile desktop remove dsh-client-ui-skin-saber    # 然后重启
 --skin-dark-board: calc(base + (1-base) * solid);  /* 实际生效值，自动算 */
 ```
 
-改 `-base` 就是改这个表面"最透时"的样子，改 `--skin-solid` 是整体加减遮挡。
+改 `-base` 是改这个表面"最透时"的样子，改 `--skin-solid` 是整体加减遮挡。
 
-⚠️ 注意 `--dsw-specific-menu` / `--dsw-menu-surface-fill` 这组菜单 token 也要覆盖（第 3 节已做），
+⚠️ `--dsw-specific-menu` / `--dsw-menu-surface-fill` 这组菜单 token 也要覆盖（第 3 节已做），
 否则 DSH 自带的 darwin 规则会把菜单一直留在半透明。
 
-### 10.4 面板没反应？
+### 10.5 排错
 
-- 面板代码在 `lib/client.js` 里，**改它必须重启 DSH**（客户端 bundle 只在启动时扫描）；
-  只改 `assets/theme.css` 则刷新页面即可（样式表每次请求读盘）；
-- 快捷键被占用时，也可以用 Console 直接改：
-  ```js
-  document.documentElement.style.setProperty('--skin-solid', '1')
-  ```
+| 现象 | 原因 / 处理 |
+| --- | --- |
+| 设置页没有「皮肤」分区 | 设置分区由 `lib/client.js` 在 `apply(ctx)` 里注册，**改后必须重启 DSH**；也确认 profile 里插件已启用 |
+| ⌥⌘K 没反应 | 快捷键只在页面加载后绑定；被占用时用 Console 兜底（10.3） |
+| 改了不生效 | 只改 `assets/theme.css` → 刷新页面；改了 `lib/client.js` → 重启 DSH |
